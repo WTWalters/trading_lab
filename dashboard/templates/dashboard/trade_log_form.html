@@ -1,0 +1,351 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-section {
+        margin-bottom: 2rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 1.5rem;
+        background-color: #f8f9fa;
+    }
+    .section-title {
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .required label:after {
+        content: " *";
+        color: red;
+    }
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>{{ page_title }}</h1>
+        <p class="lead">Document trade details, risk metrics, and psychological factors.</p>
+    </div>
+</div>
+
+<!-- Show messages if any -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            {% if form.errors %}
+                <div class="alert alert-danger">
+                    <strong>There are errors in the form:</strong>
+                    {{ form.non_field_errors }}
+                    <ul>
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+            
+            <!-- Trade Basics Section -->
+            <div class="form-section">
+                <h3 class="section-title">Trade Basics</h3>
+                <div class="row">
+                    <div class="col-md-6 mb-3 required">
+                        <label for="{{ form.ticker.id_for_label }}">Ticker Symbol</label>
+                        {{ form.ticker }}
+                        {% if form.ticker.help_text %}
+                            <div class="help-text">{{ form.ticker.help_text }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3 required">
+                        <label for="{{ form.strategy.id_for_label }}">Strategy</label>
+                        {{ form.strategy }}
+                        {% if form.strategy.help_text %}
+                            <div class="help-text">{{ form.strategy.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3 required">
+                        <label for="{{ form.entry_date.id_for_label }}">Entry Date</label>
+                        {{ form.entry_date }}
+                        {% if form.entry_date.help_text %}
+                            <div class="help-text">{{ form.entry_date.help_text }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.exit_date.id_for_label }}">Exit Date</label>
+                        {{ form.exit_date }}
+                        <div class="help-text">Leave empty if trade is still open</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Price Information Section -->
+            <div class="form-section">
+                <h3 class="section-title">Price Information <button type="button" class="btn btn-sm btn-outline-info" data-education-topic="consolidation"><i class="fas fa-info-circle"></i> Learn about price patterns</button></h3>
+                <div class="row">
+                    <div class="col-md-6 mb-3 required">
+                        <label for="{{ form.entry_price.id_for_label }}">Entry Price</label>
+                        {{ form.entry_price }}
+                        {% if form.entry_price.help_text %}
+                            <div class="help-text">{{ form.entry_price.help_text }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.exit_price.id_for_label }}">Exit Price</label>
+                        {{ form.exit_price }}
+                        <div class="help-text">Leave empty if trade is still open</div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3 required">
+                        <label for="{{ form.initial_stop_loss.id_for_label }}">Initial Stop Loss <button type="button" class="btn btn-sm btn-outline-info" data-education-topic="atr_stop"><i class="fas fa-info-circle"></i></button></label>
+                        {{ form.initial_stop_loss }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.planned_target.id_for_label }}">Planned Target</label>
+                        {{ form.planned_target }}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Position & Risk Section -->
+            <div class="form-section">
+                <h3 class="section-title">Position & Risk <button type="button" class="btn btn-sm btn-outline-info" data-education-topic="default"><i class="fas fa-info-circle"></i> Learn about the strategy</button></h3>
+                <div class="row">
+                    <div class="col-md-6 mb-3 required">
+                        <label for="{{ form.position_size.id_for_label }}">Position Size (shares/contracts) <button type="button" class="btn btn-sm btn-outline-info" data-education-topic="position_sizing"><i class="fas fa-info-circle"></i></button></label>
+                        {{ form.position_size }}
+                    </div>
+                    <div class="col-md-6 mb-3 required">
+                        <label for="{{ form.user_risk_percent.id_for_label }}">Risk Percentage (%)</label>
+                        {{ form.user_risk_percent }}
+                        <div class="help-text">% of account willing to risk on this trade</div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3 required">
+                        <label for="{{ form.account_capital_at_trade.id_for_label }}">Account Capital ($)</label>
+                        {{ form.account_capital_at_trade }}
+                        <div class="help-text">Total account value at the time of the trade</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.pnl.id_for_label }}">Profit/Loss ($)</label>
+                        {{ form.pnl }}
+                        <div class="help-text">Realized profit or loss from the trade</div>
+                    </div>
+                </div>
+                
+                <!-- Risk Calculator Section (To be implemented in Story 11) -->
+                <div class="card mt-3 mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Risk Calculator <button type="button" class="btn btn-sm btn-outline-info" data-education-topic="rr_ratio"><i class="fas fa-info-circle"></i> Learn about R:R ratio</button></h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Planned R:R Ratio:</strong> <span id="rr-ratio" class="fw-bold">-</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Suggested Position Size:</strong> <span id="suggested-size" class="fw-bold">-</span> shares</p>
+                            </div>
+                        </div>
+                        <!-- Hidden fields to store calculated values for form submission -->
+                        <input type="hidden" id="planned_rr_ratio" name="planned_rr_ratio" value="{{ form.planned_rr_ratio.value|default:'' }}">
+                        <input type="hidden" id="suggested_position_size" name="suggested_position_size" value="{{ form.suggested_position_size.value|default:'' }}">
+                        <p class="text-muted mb-0"><small>Values update automatically based on your inputs.</small></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Trade Analysis Section -->
+            <div class="form-section">
+                <h3 class="section-title">Trade Analysis</h3>
+                <div class="mb-3 required">
+                    <label for="{{ form.rationale.id_for_label }}">Trade Rationale</label>
+                    {{ form.rationale }}
+                    <div class="help-text">What was your reason for entering this trade?</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.emotion_pre.id_for_label }}">Pre-Trade Emotion</label>
+                        {{ form.emotion_pre }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.emotion_during.id_for_label }}">During-Trade Emotion</label>
+                        {{ form.emotion_during }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.emotion_post.id_for_label }}">Post-Trade Emotion</label>
+                        {{ form.emotion_post }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.mistakes.id_for_label }}">Mistakes Made</label>
+                        {{ form.mistakes }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.lessons.id_for_label }}">Lessons Learned</label>
+                        {{ form.lessons }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <button type="submit" class="btn btn-primary">{{ submit_btn_text }}</button>
+                <a href="{% url 'dashboard:trade_log_list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 1rem;">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Trading Tips</h4>
+            </div>
+            <div class="card-body">
+                <h5>Classic Breakout Strategy</h5>
+                <p>Look for a consolidation pattern followed by a breakout on higher-than-average volume.</p>
+                
+                <h5>Risk Management</h5>
+                <ul>
+                    <li>Set stop loss below support for long positions</li>
+                    <li>Consider trailing stops using ATR (2-3× ATR is common)</li>
+                    <li>Aim for at least 2:1 reward-to-risk ratio</li>
+                </ul>
+                
+                <h5>Psychological Awareness</h5>
+                <p>Be mindful of your emotions before, during, and after trades. Look for patterns that may influence your decision making.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get references to input fields
+        const entryPriceField = document.getElementById('{{ form.entry_price.id_for_label }}');
+        const stopLossField = document.getElementById('{{ form.initial_stop_loss.id_for_label }}');
+        const targetField = document.getElementById('{{ form.planned_target.id_for_label }}');
+        const riskPercentField = document.getElementById('{{ form.user_risk_percent.id_for_label }}');
+        const accountCapitalField = document.getElementById('{{ form.account_capital_at_trade.id_for_label }}');
+        const positionSizeField = document.getElementById('{{ form.position_size.id_for_label }}');
+        
+        // Get references to display elements
+        const rrRatioDisplay = document.getElementById('rr-ratio');
+        const suggestedSizeDisplay = document.getElementById('suggested-size');
+        
+        // Get references to hidden fields for form submission
+        const plannedRRRatioHidden = document.getElementById('planned_rr_ratio');
+        const suggestedPositionSizeHidden = document.getElementById('suggested_position_size');
+        
+        // Function to calculate and update R:R ratio
+        function calculateRRRatio() {
+            const entry = parseFloat(entryPriceField.value);
+            const stop = parseFloat(stopLossField.value);
+            const target = parseFloat(targetField.value);
+            
+            // Only calculate if all values are valid
+            if (!isNaN(entry) && !isNaN(stop) && !isNaN(target) && entry !== stop && entry !== target) {
+                // Calculate risk (difference between entry and stop)
+                const risk = Math.abs(entry - stop);
+                
+                // Calculate reward (difference between entry and target)
+                const reward = Math.abs(target - entry);
+                
+                // Calculate R:R ratio
+                const ratio = (reward / risk).toFixed(2);
+                
+                // Update display and hidden field
+                rrRatioDisplay.textContent = ratio;
+                plannedRRRatioHidden.value = ratio;
+                
+                // Set color based on ratio value
+                if (ratio >= 2.0) {
+                    rrRatioDisplay.className = 'fw-bold text-success';
+                } else if (ratio >= 1.0) {
+                    rrRatioDisplay.className = 'fw-bold text-warning';
+                } else {
+                    rrRatioDisplay.className = 'fw-bold text-danger';
+                }
+            } else {
+                // Reset if inputs are invalid
+                rrRatioDisplay.textContent = '-';
+                rrRatioDisplay.className = 'fw-bold';
+                plannedRRRatioHidden.value = '';
+            }
+        }
+        
+        // Function to calculate and update suggested position size
+        function calculatePositionSize() {
+            const entry = parseFloat(entryPriceField.value);
+            const stop = parseFloat(stopLossField.value);
+            const capital = parseFloat(accountCapitalField.value);
+            const riskPercent = parseFloat(riskPercentField.value);
+            
+            // Only calculate if all values are valid
+            if (!isNaN(entry) && !isNaN(stop) && !isNaN(capital) && !isNaN(riskPercent) && entry !== stop && capital > 0 && riskPercent > 0) {
+                // Calculate risk per share
+                const riskPerShare = Math.abs(entry - stop);
+                
+                // Calculate total risk amount (capital * risk%)
+                const totalRiskAmount = capital * (riskPercent / 100);
+                
+                // Calculate suggested position size (rounded down to whole shares)
+                const suggestedSize = Math.floor(totalRiskAmount / riskPerShare);
+                
+                // Update display and hidden field
+                suggestedSizeDisplay.textContent = suggestedSize;
+                suggestedPositionSizeHidden.value = suggestedSize;
+                
+                // Set a sensible default for position size if empty
+                if (positionSizeField.value === '') {
+                    positionSizeField.value = suggestedSize;
+                }
+            } else {
+                // Reset if inputs are invalid
+                suggestedSizeDisplay.textContent = '-';
+                suggestedPositionSizeHidden.value = '';
+            }
+        }
+        
+        // Function to update all calculations
+        function updateCalculations() {
+            calculateRRRatio();
+            calculatePositionSize();
+        }
+        
+        // Add event listeners to input fields
+        entryPriceField.addEventListener('input', updateCalculations);
+        stopLossField.addEventListener('input', updateCalculations);
+        targetField.addEventListener('input', updateCalculations);
+        riskPercentField.addEventListener('input', updateCalculations);
+        accountCapitalField.addEventListener('input', updateCalculations);
+        
+        // Initialize calculations on page load
+        updateCalculations();
+    });
+</script>
+{% endblock %}

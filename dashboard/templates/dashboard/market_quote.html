@@ -1,0 +1,296 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Live Market Quotes{% endblock %}
+
+{% block extra_head %}
+<style>
+    .quote-card {
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .quote-card.success {
+        background-color: rgba(25, 135, 84, 0.1);
+        border: 1px solid rgba(25, 135, 84, 0.2);
+    }
+    
+    .quote-card.error {
+        background-color: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.2);
+    }
+    
+    .price-value {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    
+    .price-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    
+    .timestamp {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    .badge-tradable {
+        background-color: #198754;
+        color: white;
+    }
+    
+    .badge-non-tradable {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .error-message {
+        color: #dc3545;
+    }
+    
+    .loading-spinner {
+        display: none;
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Live Market Quotes</h1>
+        <p class="lead">View the latest stock quotes from Alpaca API (for observation only)</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Quote Search Form -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Stock Quote Lookup</h4>
+            </div>
+            <div class="card-body">
+                <form id="quote-form" method="get" action="{% url 'dashboard:market_quote' %}">
+                    <div class="row align-items-end">
+                        <div class="col-md-6 mb-3">
+                            <label for="ticker" class="form-label">Ticker Symbol</label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="ticker" 
+                                    name="ticker" 
+                                    placeholder="e.g., AAPL"
+                                    value="{{ request.GET.ticker|default:'' }}" 
+                                    required 
+                                    list="ticker-list"
+                                    autocomplete="off"
+                                >
+                                <datalist id="ticker-list">
+                                    {% for ticker in db_tickers %}
+                                    <option value="{{ ticker }}">
+                                    {% endfor %}
+                                </datalist>
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-search"></i> Get Quote
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3 d-flex justify-content-end align-items-center">
+                            <button type="button" id="refresh-button" class="btn btn-success" {% if not quote_data %}disabled{% endif %}>
+                                <span class="spinner-border spinner-border-sm loading-spinner" role="status" aria-hidden="true"></span>
+                                <i class="fas fa-sync-alt"></i> Refresh Quote
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Quote Display Card -->
+        <div id="quote-container">
+            {% if quote_data %}
+                {% if quote_data.status == 'success' %}
+                <div class="card mb-4 quote-card success">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">{{ quote_data.ticker }}</h4>
+                        {% if tradable %}
+                        <span class="badge badge-tradable">Tradable on Alpaca</span>
+                        {% else %}
+                        <span class="badge badge-non-tradable">Not Tradable on Alpaca</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 text-center mb-3">
+                                <div class="price-label">Bid Price</div>
+                                <div class="price-value">${{ quote_data.bid_price|floatformat:2 }}</div>
+                                <div class="price-size">Size: {{ quote_data.bid_size|floatformat:0 }}</div>
+                            </div>
+                            <div class="col-md-6 text-center mb-3">
+                                <div class="price-label">Ask Price</div>
+                                <div class="price-value">${{ quote_data.ask_price|floatformat:2 }}</div>
+                                <div class="price-size">Size: {{ quote_data.ask_size|floatformat:0 }}</div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <div class="timestamp">Last Updated: {{ quote_data.timestamp }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card mb-4 quote-card error">
+                    <div class="card-header">
+                        <h4 class="mb-0">Error Fetching Quote for {{ quote_data.ticker }}</h4>
+                    </div>
+                    <div class="card-body">
+                        <p class="error-message">{{ quote_data.error_message }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 1rem;">
+            <div class="card-header bg-dark text-white">
+                <h4 class="mb-0">Market Data Information</h4>
+            </div>
+            <div class="card-body">
+                <h5>About Alpaca API</h5>
+                <p>This feature uses the Alpaca API to fetch live market quotes for stocks. All data is for informational purposes only.</p>
+                
+                <h5>Available Data</h5>
+                <ul>
+                    <li><strong>Bid Price/Size:</strong> The highest price a buyer is willing to pay</li>
+                    <li><strong>Ask Price/Size:</strong> The lowest price a seller is willing to accept</li>
+                </ul>
+                
+                <hr>
+                
+                <h5>Trading Hours</h5>
+                <p>US Stock Market regular hours are 9:30 AM to 4:00 PM Eastern Time, Monday to Friday (excluding holidays).</p>
+                
+                <p class="text-muted small"><em>Note: Quote data may be delayed by up to 15 minutes for non-premium Alpaca accounts.</em></p>
+                
+                <div class="mt-3">
+                    <a href="{% url 'dashboard:chart_view_default' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-chart-line"></i> View Historical Charts
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const refreshButton = document.getElementById('refresh-button');
+        const quoteContainer = document.getElementById('quote-container');
+        const spinner = document.querySelector('.loading-spinner');
+        const tickerInput = document.getElementById('ticker');
+        
+        // Only enable refresh if we have a ticker
+        const currentTicker = tickerInput.value.trim().toUpperCase();
+        if (currentTicker) {
+            refreshButton.disabled = false;
+        }
+        
+        // Handle refresh button click
+        refreshButton.addEventListener('click', function() {
+            const ticker = tickerInput.value.trim().toUpperCase();
+            if (!ticker) {
+                alert('Please enter a ticker symbol first');
+                return;
+            }
+            
+            // Show loading spinner
+            spinner.style.display = 'inline-block';
+            refreshButton.disabled = true;
+            
+            // Make AJAX request to get updated quote
+            fetch(`?ticker=${ticker}&refresh=true`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide spinner
+                spinner.style.display = 'none';
+                refreshButton.disabled = false;
+                
+                // Update the UI with new quote data
+                updateQuoteUI(data);
+            })
+            .catch(error => {
+                // Hide spinner
+                spinner.style.display = 'none';
+                refreshButton.disabled = false;
+                
+                // Show error message
+                console.error('Error fetching quote:', error);
+                quoteContainer.innerHTML = `
+                    <div class="card mb-4 quote-card error">
+                        <div class="card-header">
+                            <h4 class="mb-0">Error Fetching Quote</h4>
+                        </div>
+                        <div class="card-body">
+                            <p class="error-message">An error occurred while refreshing the quote. Please try again.</p>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+        
+        // Function to update the UI with new quote data
+        function updateQuoteUI(data) {
+            if (data.status === 'success') {
+                quoteContainer.innerHTML = `
+                    <div class="card mb-4 quote-card success">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0">${data.ticker}</h4>
+                            <span class="badge ${data.tradable ? 'badge-tradable' : 'badge-non-tradable'}">
+                                ${data.tradable ? 'Tradable on Alpaca' : 'Not Tradable on Alpaca'}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 text-center mb-3">
+                                    <div class="price-label">Bid Price</div>
+                                    <div class="price-value">$${parseFloat(data.bid_price).toFixed(2)}</div>
+                                    <div class="price-size">Size: ${Math.round(data.bid_size)}</div>
+                                </div>
+                                <div class="col-md-6 text-center mb-3">
+                                    <div class="price-label">Ask Price</div>
+                                    <div class="price-value">$${parseFloat(data.ask_price).toFixed(2)}</div>
+                                    <div class="price-size">Size: ${Math.round(data.ask_size)}</div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-2">
+                                <div class="timestamp">Last Updated: ${data.timestamp}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                quoteContainer.innerHTML = `
+                    <div class="card mb-4 quote-card error">
+                        <div class="card-header">
+                            <h4 class="mb-0">Error Fetching Quote for ${data.ticker || 'Unknown Ticker'}</h4>
+                        </div>
+                        <div class="card-body">
+                            <p class="error-message">${data.error_message || 'Unknown error occurred'}</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    });
+</script>
+{% endblock %}

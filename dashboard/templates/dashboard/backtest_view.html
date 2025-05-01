@@ -1,0 +1,346 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Backtest - Trading Lab{% endblock %}
+{% block extra_head %}
+<style>
+  .result-card {
+    margin-bottom: 20px;
+  }
+  .metrics-table td {
+    padding: 5px 10px;
+    vertical-align: top; /* Align text to top */
+  }
+  .trades-table {
+    width: 100%;
+    margin-top: 10px;
+  }
+  .trades-table th,
+  .trades-table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6; /* Add bottom border */
+  }
+  .metric-value {
+    font-weight: bold;
+    text-align: right; /* Align values to the right */
+  }
+  .positive {
+    color: green;
+  }
+  .negative {
+    color: red;
+  }
+  /* Style for the configuration card */
+  .config-card {
+    position: sticky;
+    top: 20px; /* Adjust as needed based on your navbar height */
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="row mb-4">
+  <div class="col">
+    <h1>Classic Breakout Strategy Backtester</h1>
+    <p class="lead">Configure and run backtests for the Classic Breakout trading strategy.</p>
+  </div>
+</div>
+
+{% if error_message %}
+<div class="alert alert-danger">{{ error_message }}</div>
+{% endif %}
+
+<div class="row">
+  <div class="col-md-4">
+    <div class="card config-card">
+      {# Added sticky class #}
+      <div class="card-header">
+        <h4>Backtest Configuration</h4>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label for="ticker" class="form-label">Ticker Symbol</label>
+            <select id="ticker" name="ticker" class="form-select" required>
+              <option value="">Select a ticker</option>
+              {% for t in available_tickers %} {# Changed loop variable #}
+              <option value="{{ t }}" {% if backtest_params.ticker == t %}selected{% endif %}>
+                {{ t }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input
+              type="date"
+              id="start_date"
+              name="start_date"
+              class="form-control"
+              value="{% if backtest_params.start_date %}{{ backtest_params.start_date }}{% endif %}"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="end_date" class="form-label">End Date</label>
+            <input
+              type="date"
+              id="end_date"
+              name="end_date"
+              class="form-control"
+              value="{% if backtest_params.end_date %}{{ backtest_params.end_date }}{% endif %}"
+            />
+          </div>
+
+          <h5 class="mt-4">Backtest Settings</h5>
+
+          <div class="mb-3">
+            <label for="initial_cash" class="form-label">Initial Cash</label>
+            {# --- CORRECTED --- #}
+            <input
+              type="number"
+              id="initial_cash"
+              name="initial_cash"
+              class="form-control"
+              value="{% if backtest_params %}{{ backtest_params.initial_cash }}{% else %}{{ default_params.initial_cash }}{% endif %}"
+              step="1000"
+              min="1000"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="commission" class="form-label">Commission (decimal)</label>
+            {# --- CORRECTED --- #}
+            <input
+              type="number"
+              id="commission"
+              name="commission"
+              class="form-control"
+              value="{% if backtest_params %}{{ backtest_params.commission }}{% else %}{{ default_params.commission }}{% endif %}"
+              step="0.0001"
+              min="0"
+              max="0.1"
+            />
+            <small class="form-text text-muted">E.g., 0.001 for 0.1%</small>
+          </div>
+
+          <h5 class="mt-4">Strategy Parameters</h5>
+
+          <div class="mb-3">
+            <label for="lookback" class="form-label">Lookback Period</label>
+            {# --- CORRECTED --- #}
+            <input
+              type="number"
+              id="lookback"
+              name="lookback"
+              class="form-control"
+              value="{% if backtest_params %}{{ backtest_params.lookback }}{% else %}{{ default_params.lookback }}{% endif %}"
+              step="1"
+              min="10"
+            />
+            <small class="form-text text-muted"
+              >Number of periods to identify consolidation range</small
+            >
+          </div>
+
+          <div class="mb-3">
+            <label for="volume_ma_period" class="form-label">Volume MA Period</label>
+            {# --- CORRECTED --- #}
+            <input
+              type="number"
+              id="volume_ma_period"
+              name="volume_ma_period"
+              class="form-control"
+              value="{% if backtest_params %}{{ backtest_params.volume_ma_period }}{% else %}{{ default_params.volume_ma_period }}{% endif %}"
+              step="1"
+              min="5"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="volume_mult" class="form-label">Volume Multiplier</label>
+            {# --- CORRECTED --- #}
+            <input
+              type="number"
+              id="volume_mult"
+              name="volume_mult"
+              class="form-control"
+              value="{% if backtest_params %}{{ backtest_params.volume_mult }}{% else %}{{ default_params.volume_mult }}{% endif %}"
+              step="0.1"
+              min="1"
+            />
+            <small class="form-text text-muted">Volume must exceed MA * this value</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="atr_period" class="form-label">ATR Period</label>
+            {# --- CORRECTED --- #}
+            <input
+              type="number"
+              id="atr_period"
+              name="atr_period"
+              class="form-control"
+              value="{% if backtest_params %}{{ backtest_params.atr_period }}{% else %}{{ default_params.atr_period }}{% endif %}"
+              step="1"
+              min="5"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="initial_stop_atr_mult" class="form-label"
+              >Initial Stop ATR Multiplier
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-info"
+                data-education-topic="atr_stop"
+              >
+                <i class="fas fa-info-circle"></i></button
+            ></label>
+            {# --- CORRECTED --- #}
+            <input
+              type="number"
+              id="initial_stop_atr_mult"
+              name="initial_stop_atr_mult"
+              class="form-control"
+              value="{% if backtest_params %}{{ backtest_params.initial_stop_atr_mult }}{% else %}{{ default_params.initial_stop_atr_mult }}{% endif %}"
+              step="0.1"
+              min="0.5"
+            />
+            <small class="form-text text-muted">Initial stop = Entry - (ATR * this value)</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="trail_stop_atr_mult" class="form-label">Trailing Stop ATR Multiplier</label>
+            {# --- CORRECTED --- #}
+            <input
+              type="number"
+              id="trail_stop_atr_mult"
+              name="trail_stop_atr_mult"
+              class="form-control"
+              value="{% if backtest_params %}{{ backtest_params.trail_stop_atr_mult }}{% else %}{{ default_params.trail_stop_atr_mult }}{% endif %}"
+              step="0.1"
+              min="0.5"
+            />
+            <small class="form-text text-muted"
+              >Trailing stop = Highest High - (ATR * this value)</small
+            >
+          </div>
+
+          <button type="submit" class="btn btn-primary">Run Backtest</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    {% if metrics %}
+    <div class="card result-card">
+      <div class="card-header">
+        <h4>Backtest Results for {{ backtest_params.ticker }}</h4>
+        {# Use backtest_params for dates as they reflect the submitted values #}
+        <small>{{ backtest_params.start_date }} to {{ backtest_params.end_date }}</small>
+      </div>
+      <div class="card-body">
+        <h5>Performance Metrics</h5>
+        <table class="metrics-table">
+          <tr>
+            <td>Total Return:</td>
+            <td
+              class="metric-value {% if metrics.total_return > 0 %}positive{% else %}negative{% endif %}"
+            >
+              {{ metrics.total_return|floatformat:2 }}%
+            </td>
+          </tr>
+          <tr>
+            <td>Initial Capital:</td>
+            <td class="metric-value">${{ metrics.initial_capital|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Final Capital:</td>
+            <td class="metric-value">${{ metrics.final_capital|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Net P&L:</td>
+            <td
+              class="metric-value {% if metrics.pnl_net > 0 %}positive{% else %}negative{% endif %}"
+            >
+              ${{ metrics.pnl_net|floatformat:2 }}
+            </td>
+          </tr>
+          <tr>
+            <td>Total Trades:</td>
+            <td class="metric-value">{{ metrics.total_trades }}</td>
+          </tr>
+          <tr>
+            <td>Winning Trades:</td>
+            <td class="metric-value">{{ metrics.winning_trades }}</td>
+          </tr>
+          <tr>
+            <td>Win Rate:</td>
+            <td class="metric-value">{{ metrics.win_rate|floatformat:2 }}%</td>
+          </tr>
+          <tr>
+            <td>Maximum Drawdown:</td>
+            <td class="metric-value negative">{{ metrics.max_drawdown|floatformat:2 }}%</td>
+          </tr>
+          <tr>
+            <td>System Quality Number (SQN):</td>
+            <td class="metric-value">{{ metrics.sqn|default:"N/A"|floatformat:2 }}</td>
+          </tr>
+          {% if metrics.sharpe_ratio %}
+          <tr>
+            <td>Sharpe Ratio:</td>
+            <td class="metric-value">{{ metrics.sharpe_ratio|floatformat:2 }}</td>
+          </tr>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+
+    {% if equity_chart_div %}
+    <div class="card result-card">
+      <div class="card-header">
+        <h4>Portfolio Value</h4>
+      </div>
+      <div class="card-body">{{ equity_chart_div|safe }}</div>
+    </div>
+    {% endif %} {% else %}
+    <div class="card">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <h4>How to Use the Backtester</h4>
+          <ol>
+            <li>Select a ticker symbol from the dropdown</li>
+            <li>Choose a date range for the backtest</li>
+            <li>Adjust backtest settings and strategy parameters as desired</li>
+            <li>Click "Run Backtest" to see the results</li>
+          </ol>
+        </div>
+        <div class="mt-4">
+          <h5>About the Classic Breakout Strategy</h5>
+          <p>
+            The Classic Breakout strategy identifies price consolidation patterns and trades
+            breakouts when confirmed by volume. It uses ATR-based stops for risk management:
+          </p>
+          <ul>
+            <li>
+              <strong>Entry:</strong> When price breaks out of a consolidation range with volume >
+              1.5× the 20-day volume MA
+            </li>
+            <li><strong>Initial Stop:</strong> Entry price - (ATR(14) × 2.0)</li>
+            <li><strong>Trailing Stop:</strong> Highest high since entry - (ATR(14) × 3.0)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+  // Add any additional JavaScript for the backtest page
+</script>
+{% endblock %}

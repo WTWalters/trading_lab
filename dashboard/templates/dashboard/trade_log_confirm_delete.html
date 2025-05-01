@@ -1,0 +1,69 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>{{ page_title }}</h1>
+        <p class="lead">Are you sure you want to delete this trade log?</p>
+    </div>
+</div>
+
+<!-- Show messages if any -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h4>Trade Details</h4>
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-3">Ticker</dt>
+            <dd class="col-sm-9">{{ trade_log.ticker }}</dd>
+            
+            <dt class="col-sm-3">Strategy</dt>
+            <dd class="col-sm-9">{{ trade_log.strategy }}</dd>
+            
+            <dt class="col-sm-3">Entry Date</dt>
+            <dd class="col-sm-9">{{ trade_log.entry_date }}</dd>
+            
+            <dt class="col-sm-3">Exit Date</dt>
+            <dd class="col-sm-9">{{ trade_log.exit_date|default:"Not exited" }}</dd>
+            
+            <dt class="col-sm-3">Entry Price</dt>
+            <dd class="col-sm-9">${{ trade_log.entry_price }}</dd>
+            
+            <dt class="col-sm-3">Position Size</dt>
+            <dd class="col-sm-9">{{ trade_log.position_size }}</dd>
+            
+            <dt class="col-sm-3">PnL</dt>
+            <dd class="col-sm-9">
+                {% if trade_log.pnl %}
+                    <span class="{% if trade_log.pnl > 0 %}text-success{% elif trade_log.pnl < 0 %}text-danger{% endif %}">
+                        ${{ trade_log.pnl }}
+                    </span>
+                {% else %}
+                    Not calculated
+                {% endif %}
+            </dd>
+        </dl>
+    </div>
+</div>
+
+<div class="alert alert-danger">
+    <strong>Warning:</strong> This action cannot be undone. All information associated with this trade log will be permanently deleted.
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Confirm Delete</button>
+    <a href="{% url 'dashboard:trade_log_detail' trade_log.pk %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

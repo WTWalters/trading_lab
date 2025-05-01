@@ -1,1 +1,3 @@
-# Initialize tests package
+"""
+Test package for core module.
+"""

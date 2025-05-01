@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Calculator UI Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+        .result {
+            font-weight: bold;
+        }
+        .success { color: green; }
+        .warning { color: orange; }
+        .danger { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Risk Calculator Test</h1>
+    <p>This page tests the JavaScript risk calculator functionality from Story 11.</p>
+    
+    <div class="form-group">
+        <label for="entry_price">Entry Price:</label>
+        <input type="number" id="entry_price" value="100" step="0.01">
+    </div>
+    
+    <div class="form-group">
+        <label for="stop_loss">Initial Stop Loss:</label>
+        <input type="number" id="stop_loss" value="95" step="0.01">
+    </div>
+    
+    <div class="form-group">
+        <label for="target_price">Planned Target:</label>
+        <input type="number" id="target_price" value="110" step="0.01">
+    </div>
+    
+    <div class="form-group">
+        <label for="risk_percent">Risk Percentage (%):</label>
+        <input type="number" id="risk_percent" value="1" step="0.01" min="0.01" max="10">
+    </div>
+    
+    <div class="form-group">
+        <label for="account_capital">Account Capital ($):</label>
+        <input type="number" id="account_capital" value="100000" step="1">
+    </div>
+    
+    <div class="card">
+        <h3>Risk Calculator Results</h3>
+        <p><strong>Planned R:R Ratio:</strong> <span id="rr-ratio" class="result">-</span></p>
+        <p><strong>Suggested Position Size:</strong> <span id="suggested-size" class="result">-</span> shares</p>
+        
+        <!-- Hidden fields to simulate form submission -->
+        <input type="hidden" id="planned_rr_ratio" name="planned_rr_ratio" value="">
+        <input type="hidden" id="suggested_position_size" name="suggested_position_size" value="">
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get references to input fields
+            const entryPriceField = document.getElementById('entry_price');
+            const stopLossField = document.getElementById('stop_loss');
+            const targetField = document.getElementById('target_price');
+            const riskPercentField = document.getElementById('risk_percent');
+            const accountCapitalField = document.getElementById('account_capital');
+            
+            // Get references to display elements
+            const rrRatioDisplay = document.getElementById('rr-ratio');
+            const suggestedSizeDisplay = document.getElementById('suggested-size');
+            
+            // Get references to hidden fields for form submission
+            const plannedRRRatioHidden = document.getElementById('planned_rr_ratio');
+            const suggestedPositionSizeHidden = document.getElementById('suggested_position_size');
+            
+            // Function to calculate and update R:R ratio
+            function calculateRRRatio() {
+                const entry = parseFloat(entryPriceField.value);
+                const stop = parseFloat(stopLossField.value);
+                const target = parseFloat(targetField.value);
+                
+                // Only calculate if all values are valid
+                if (!isNaN(entry) && !isNaN(stop) && !isNaN(target) && entry !== stop && entry !== target) {
+                    // Calculate risk (difference between entry and stop)
+                    const risk = Math.abs(entry - stop);
+                    
+                    // Calculate reward (difference between entry and target)
+                    const reward = Math.abs(target - entry);
+                    
+                    // Calculate R:R ratio
+                    const ratio = (reward / risk).toFixed(2);
+                    
+                    // Update display and hidden field
+                    rrRatioDisplay.textContent = ratio;
+                    plannedRRRatioHidden.value = ratio;
+                    
+                    // Set color based on ratio value
+                    if (ratio >= 2.0) {
+                        rrRatioDisplay.className = 'result success';
+                    } else if (ratio >= 1.0) {
+                        rrRatioDisplay.className = 'result warning';
+                    } else {
+                        rrRatioDisplay.className = 'result danger';
+                    }
+                } else {
+                    // Reset if inputs are invalid
+                    rrRatioDisplay.textContent = '-';
+                    rrRatioDisplay.className = 'result';
+                    plannedRRRatioHidden.value = '';
+                }
+            }
+            
+            // Function to calculate and update suggested position size
+            function calculatePositionSize() {
+                const entry = parseFloat(entryPriceField.value);
+                const stop = parseFloat(stopLossField.value);
+                const capital = parseFloat(accountCapitalField.value);
+                const riskPercent = parseFloat(riskPercentField.value);
+                
+                // Only calculate if all values are valid
+                if (!isNaN(entry) && !isNaN(stop) && !isNaN(capital) && !isNaN(riskPercent) && entry !== stop && capital > 0 && riskPercent > 0) {
+                    // Calculate risk per share
+                    const riskPerShare = Math.abs(entry - stop);
+                    
+                    // Calculate total risk amount (capital * risk%)
+                    const totalRiskAmount = capital * (riskPercent / 100);
+                    
+                    // Calculate suggested position size (rounded down to whole shares)
+                    const suggestedSize = Math.floor(totalRiskAmount / riskPerShare);
+                    
+                    // Update display and hidden field
+                    suggestedSizeDisplay.textContent = suggestedSize;
+                    suggestedPositionSizeHidden.value = suggestedSize;
+                } else {
+                    // Reset if inputs are invalid
+                    suggestedSizeDisplay.textContent = '-';
+                    suggestedPositionSizeHidden.value = '';
+                }
+            }
+            
+            // Function to update all calculations
+            function updateCalculations() {
+                calculateRRRatio();
+                calculatePositionSize();
+            }
+            
+            // Add event listeners to input fields
+            entryPriceField.addEventListener('input', updateCalculations);
+            stopLossField.addEventListener('input', updateCalculations);
+            targetField.addEventListener('input', updateCalculations);
+            riskPercentField.addEventListener('input', updateCalculations);
+            accountCapitalField.addEventListener('input', updateCalculations);
+            
+            // Initialize calculations on page load
+            updateCalculations();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Stock Chart - {{ ticker }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>{{ ticker }} Candlestick Chart <button type="button" class="btn btn-sm btn-outline-info" data-education-topic="consolidation"><i class="fas fa-info-circle"></i> Learn about chart patterns</button></h4>
+            </div>
+            <div class="card-body">
+                {% if error_message %}
+                <div class="alert alert-danger">{{ error_message }}</div>
+                {% endif %}
+                
+                <form method="get" class="mb-4">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="ticker">Ticker Symbol:</label>
+                                <input type="text" name="ticker" id="ticker" class="form-control" 
+                                    value="{{ ticker|default:'' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="start_date">Start Date:</label>
+                                <input type="date" name="start_date" id="start_date" class="form-control" 
+                                    value="{{ start_date|date:'Y-m-d' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="end_date">End Date:</label>
+                                <input type="date" name="end_date" id="end_date" class="form-control" 
+                                    value="{{ end_date|date:'Y-m-d' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">Load Chart</button>
+                </form>
+                
+                {% if chart_div %}
+                <div class="mb-3">
+                    <div id="chart-controls" class="mb-3">
+                        <label class="form-check-label mb-2">Toggle Moving Averages: <button type="button" class="btn btn-sm btn-outline-info" data-education-topic="atr_stop"><i class="fas fa-info-circle"></i> Learn about technical indicators</button></label>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="sma10" checked>
+                            <label class="form-check-label" for="sma10">SMA 10</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="sma20" checked>
+                            <label class="form-check-label" for="sma20">SMA 20</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="sma50" checked>
+                            <label class="form-check-label" for="sma50">SMA 50</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="ema10" checked>
+                            <label class="form-check-label" for="ema10">EMA 10</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="ema20" checked>
+                            <label class="form-check-label" for="ema20">EMA 20</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="ema50" checked>
+                            <label class="form-check-label" for="ema50">EMA 50</label>
+                        </div>
+                    </div>
+                    <div id="chart-container">
+                        {{ chart_div|safe }}
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    {% if ticker %}
+                    No data available for {{ ticker }}. Please try another ticker or date range.
+                    {% else %}
+                    Enter a ticker symbol to view the chart.
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if chart_div %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get the chart element
+    const chartDiv = document.getElementById('chart-container').firstElementChild;
+    const chartObj = JSON.parse(document.getElementById('chart-data').textContent);
+    
+    // Function to toggle trace visibility
+    function toggleTraceVisibility(traceId, visible) {
+        Plotly.restyle(chartDiv, {
+            visible: visible ? true : 'legendonly'
+        }, [traceId]);
+    }
+    
+    // Setup event listeners for checkboxes
+    document.getElementById('sma10').addEventListener('change', function(e) {
+        toggleTraceVisibility(chartObj.sma10Index, e.target.checked);
+    });
+    
+    document.getElementById('sma20').addEventListener('change', function(e) {
+        toggleTraceVisibility(chartObj.sma20Index, e.target.checked);
+    });
+    
+    document.getElementById('sma50').addEventListener('change', function(e) {
+        toggleTraceVisibility(chartObj.sma50Index, e.target.checked);
+    });
+    
+    document.getElementById('ema10').addEventListener('change', function(e) {
+        toggleTraceVisibility(chartObj.ema10Index, e.target.checked);
+    });
+    
+    document.getElementById('ema20').addEventListener('change', function(e) {
+        toggleTraceVisibility(chartObj.ema20Index, e.target.checked);
+    });
+    
+    document.getElementById('ema50').addEventListener('change', function(e) {
+        toggleTraceVisibility(chartObj.ema50Index, e.target.checked);
+    });
+});
+</script>
+<script id="chart-data" type="application/json">{{ chart_indices|safe }}</script>
+{% endif %}
+{% endblock %}

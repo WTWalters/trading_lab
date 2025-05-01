@@ -1,0 +1,441 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Trade Log - {{ trade_log.ticker }}{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all checklist items
+        const checklistItems = document.querySelectorAll('.checklist-item');
+        
+        // Add change event listener to each checkbox
+        checklistItems.forEach(function(item) {
+            item.addEventListener('change', function() {
+                // Get the item ID and checked status
+                const itemId = this.dataset.itemId;
+                const isChecked = this.checked;
+                
+                // Prepare the data for the AJAX request
+                const data = new FormData();
+                data.append('item_id', itemId);
+                data.append('is_checked', isChecked);
+                data.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                
+                // Send the AJAX request
+                fetch('{% url "dashboard:update_checklist_item" %}', {
+                    method: 'POST',
+                    body: data,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show a temporary success message
+                        const feedback = document.createElement('div');
+                        feedback.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                        feedback.style.top = '20px';
+                        feedback.style.right = '20px';
+                        feedback.style.zIndex = '9999';
+                        feedback.innerHTML = `
+                            <strong>Saved!</strong> Checklist item updated.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        `;
+                        document.body.appendChild(feedback);
+                        
+                        // Remove the feedback after 3 seconds
+                        setTimeout(() => {
+                            feedback.remove();
+                        }, 3000);
+                    } else {
+                        // If there was an error, revert the checkbox
+                        this.checked = !isChecked;
+                        alert('Error updating checklist item: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    // If there was an error, revert the checkbox
+                    this.checked = !isChecked;
+                    console.error('Error:', error);
+                    alert('An error occurred while updating the checklist item.');
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .detail-section {
+        margin-bottom: 2rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 1.5rem;
+        background-color: #f8f9fa;
+    }
+    .section-title {
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .detail-item {
+        margin-bottom: 1rem;
+    }
+    .detail-label {
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+    }
+    .detail-value {
+        font-size: 1.1rem;
+    }
+    .text-block {
+        background-color: white;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        padding: 0.75rem;
+        min-height: 5rem;
+    }
+    .badge-section {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>{{ trade_log.ticker }} Trade Log</h1>
+        <p class="lead">
+            {{ trade_log.strategy }} trade entered on {{ trade_log.entry_date|date:"F j, Y" }}
+            {% if trade_log.exit_date %}
+            and exited on {{ trade_log.exit_date|date:"F j, Y" }}
+            {% else %}
+            (still open)
+            {% endif %}
+        </p>
+    </div>
+    <div class="col-auto">
+        <div class="btn-group">
+            <a href="{% url 'dashboard:trade_log_update' pk=trade_log.pk %}" class="btn btn-warning">
+                <i class="fas fa-edit"></i> Edit Trade
+            </a>
+            <a href="{% url 'dashboard:trade_log_list' %}" class="btn btn-secondary">
+                <i class="fas fa-list"></i> Back to List
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Show messages if any -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Trade Performance Summary -->
+        <div class="detail-section">
+            <h3 class="section-title">Trade Performance</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-3 {% if trade_log.pnl and trade_log.pnl > 0 %}border-success{% elif trade_log.pnl and trade_log.pnl < 0 %}border-danger{% else %}border-secondary{% endif %}">
+                        <div class="card-body">
+                            <h5 class="card-title">Profit & Loss</h5>
+                            {% if trade_log.pnl %}
+                                <p class="card-text fs-3 {% if trade_log.pnl > 0 %}text-success{% elif trade_log.pnl < 0 %}text-danger{% endif %}">
+                                    ${{ trade_log.pnl }}
+                                </p>
+                            {% else %}
+                                <p class="card-text fs-3 text-muted">Not yet calculated</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-3 {% if trade_log.planned_rr_ratio %}border-info{% else %}border-secondary{% endif %}">
+                        <div class="card-body">
+                            <h5 class="card-title">Risk/Reward Ratio</h5>
+                            {% if trade_log.planned_rr_ratio %}
+                                <p class="card-text fs-3 text-info">{{ trade_log.planned_rr_ratio }}:1</p>
+                            {% else %}
+                                <p class="card-text fs-3 text-muted">Not calculated</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Trade Details -->
+        <div class="detail-section">
+            <h3 class="section-title">Trade Details</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="detail-item">
+                        <div class="detail-label">Ticker:</div>
+                        <div class="detail-value">{{ trade_log.ticker }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Strategy:</div>
+                        <div class="detail-value">{{ trade_log.strategy }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Entry Date:</div>
+                        <div class="detail-value">{{ trade_log.entry_date|date:"F j, Y, g:i a" }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Exit Date:</div>
+                        <div class="detail-value">
+                            {% if trade_log.exit_date %}
+                                {{ trade_log.exit_date|date:"F j, Y, g:i a" }}
+                            {% else %}
+                                <span class="text-muted">Still open</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="detail-item">
+                        <div class="detail-label">Entry Price:</div>
+                        <div class="detail-value">${{ trade_log.entry_price }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Exit Price:</div>
+                        <div class="detail-value">
+                            {% if trade_log.exit_price %}
+                                ${{ trade_log.exit_price }}
+                            {% else %}
+                                <span class="text-muted">Not yet exited</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Initial Stop Loss:</div>
+                        <div class="detail-value">${{ trade_log.initial_stop_loss }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Planned Target:</div>
+                        <div class="detail-value">
+                            {% if trade_log.planned_target %}
+                                ${{ trade_log.planned_target }}
+                            {% else %}
+                                <span class="text-muted">Not set</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Position & Risk Information -->
+        <div class="detail-section">
+            <h3 class="section-title">Position & Risk Information</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="detail-item">
+                        <div class="detail-label">Position Size:</div>
+                        <div class="detail-value">{{ trade_log.position_size }} shares</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Suggested Position Size:</div>
+                        <div class="detail-value">
+                            {% if trade_log.suggested_position_size %}
+                                {{ trade_log.suggested_position_size }} shares
+                            {% else %}
+                                <span class="text-muted">Not calculated</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="detail-item">
+                        <div class="detail-label">Risk Percentage:</div>
+                        <div class="detail-value">{{ trade_log.user_risk_percent }}%</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Account Capital:</div>
+                        <div class="detail-value">${{ trade_log.account_capital_at_trade }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Trade Analysis -->
+        <div class="detail-section">
+            <h3 class="section-title">Analysis & Psychology</h3>
+            
+            <div class="detail-item">
+                <div class="detail-label">Trade Rationale:</div>
+                <div class="text-block">{{ trade_log.rationale }}</div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="detail-item">
+                        <div class="detail-label">Pre-Trade Emotion:</div>
+                        <div class="text-block">
+                            {% if trade_log.emotion_pre %}
+                                {{ trade_log.emotion_pre }}
+                            {% else %}
+                                <span class="text-muted">Not recorded</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="detail-item">
+                        <div class="detail-label">During-Trade Emotion:</div>
+                        <div class="text-block">
+                            {% if trade_log.emotion_during %}
+                                {{ trade_log.emotion_during }}
+                            {% else %}
+                                <span class="text-muted">Not recorded</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="detail-item">
+                        <div class="detail-label">Post-Trade Emotion:</div>
+                        <div class="text-block">
+                            {% if trade_log.emotion_post %}
+                                {{ trade_log.emotion_post }}
+                            {% else %}
+                                <span class="text-muted">Not recorded</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="detail-item">
+                        <div class="detail-label">Mistakes Made:</div>
+                        <div class="text-block">
+                            {% if trade_log.mistakes %}
+                                {{ trade_log.mistakes }}
+                            {% else %}
+                                <span class="text-muted">Not recorded</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="detail-item">
+                        <div class="detail-label">Lessons Learned:</div>
+                        <div class="text-block">
+                            {% if trade_log.lessons %}
+                                {{ trade_log.lessons }}
+                            {% else %}
+                                <span class="text-muted">Not recorded</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Trade Checklist Card -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Trade Checklist</h4>
+            </div>
+            <div class="card-body">
+                <form id="checklist-form">
+                    {% csrf_token %}
+                    <ul class="list-group list-group-flush">
+                        {% for item in checklist_items %}
+                            <li class="list-group-item">
+                                <div class="form-check">
+                                    <input class="form-check-input checklist-item" 
+                                        type="checkbox" 
+                                        name="checklist_{{ item.id }}" 
+                                        id="checklist_{{ item.id }}" 
+                                        {% if item.is_checked %}checked{% endif %}
+                                        data-item-id="{{ item.id }}">
+                                    <label class="form-check-label" for="checklist_{{ item.id }}">
+                                        {{ item.checklist_item }}
+                                    </label>
+                                </div>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item">No checklist items available</li>
+                        {% endfor %}
+                    </ul>
+                </form>
+                <div class="mt-3">
+                    <p class="text-muted mb-0"><small>Checklist items will be saved automatically when checking/unchecking.</small></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trade Statistics Card -->
+        <div class="card sticky-top" style="top: 1rem;">
+            <div class="card-header bg-dark text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Trade Statistics</h4>
+                    <button type="button" class="btn btn-sm btn-outline-light" data-education-topic="default"><i class="fas fa-info-circle"></i> Strategy Info</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Trade Duration:</span>
+                        {% if trade_log.exit_date %}
+                            <span>{{ trade_log.exit_date|timeuntil:trade_log.entry_date }}</span>
+                        {% else %}
+                            <span>{{ trade_log.entry_date|timesince }} (ongoing)</span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Risk Amount:</span>
+                        <span>${{ trade_log.user_risk_percent|floatformat:2 }}% of account</span>
+                    </li>
+                    {% if trade_log.planned_rr_ratio %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Risk:Reward Ratio: <button type="button" class="btn btn-sm btn-outline-secondary" data-education-topic="rr_ratio"><i class="fas fa-info-circle"></i></button></span>
+                        <span>1:{{ trade_log.planned_rr_ratio }}</span>
+                    </li>
+                    {% endif %}
+                    {% if trade_log.pnl %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>P&L:</span>
+                        <span class="{% if trade_log.pnl > 0 %}text-success{% else %}text-danger{% endif %}">
+                            ${{ trade_log.pnl }}
+                        </span>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <hr>
+                
+                <h5 class="card-title mt-3">Related Actions</h5>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'dashboard:chart_view_default' %}?ticker={{ trade_log.ticker }}" class="btn btn-outline-primary">
+                        View {{ trade_log.ticker }} Chart
+                    </a>
+                    {% if not trade_log.exit_date %}
+                    <a href="{% url 'dashboard:trade_log_update' pk=trade_log.pk %}" class="btn btn-outline-success">
+                        Update with Exit Information
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

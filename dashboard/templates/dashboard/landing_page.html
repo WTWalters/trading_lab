@@ -1,0 +1,115 @@
+<!-- dashboard/templates/dashboard/landing_page.html -->
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Trading Lab - Home{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="jumbotron">
+        <h1 class="display-4">Welcome to Trading Lab</h1>
+        <p class="lead">A comprehensive platform for swing trading analysis, backtesting, and journaling.</p>
+        <hr class="my-4">
+        <p>Analyze stocks, backtest strategies, log your trades, and improve your trading skills.</p>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Market Analysis</h5>
+                    <p class="card-text">View interactive stock charts with technical indicators.</p>
+                    <a href="{% url 'dashboard:chart_view_default' %}" class="btn btn-primary">Open Charts</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Backtesting</h5>
+                    <p class="card-text">Test the Classic Breakout strategy against historical data.</p>
+                    <a href="{% url 'dashboard:backtest_view' %}" class="btn btn-primary">Run Backtest</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Trade Journal</h5>
+                    <p class="card-text">Log and track your trades with detailed analysis.</p>
+                    <a href="{% url 'dashboard:trade_log_list' %}" class="btn btn-primary">Trade Log</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Market Quotes</h5>
+                    <p class="card-text">Get the latest market data for any stock.</p>
+                    <a href="{% url 'dashboard:market_quote' %}" class="btn btn-primary">Market Quotes</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">New Trade</h5>
+                    <p class="card-text">Log a new trade with risk calculations.</p>
+                    <a href="{% url 'dashboard:trade_log_create' %}" class="btn btn-primary">Create Trade Log</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Educational Guidance</h5>
+                    <p class="card-text">Learn about trading concepts with AI assistance.</p>
+                    <a href="#" onclick="showEducationModal('classic_breakout_strategy'); return false;" class="btn btn-primary">Learn Trading</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Education Modal -->
+<div class="modal fade" id="educationModal" tabindex="-1" role="dialog" aria-labelledby="educationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="educationModalLabel">Trading Education</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="educationModalBody">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p>Loading educational content...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showEducationModal(topic) {
+    $('#educationModal').modal('show');
+    
+    // Fetch educational content using the existing endpoint
+    fetch(`/education/query/?topic=${topic}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('educationModalBody').innerHTML = `<p>${data.explanation}</p>`;
+        })
+        .catch(error => {
+            document.getElementById('educationModalBody').innerHTML = 
+                `<div class="alert alert-danger">Error loading content: ${error.message}</div>`;
+        });
+}
+</script>
+{% endblock %}
